@@ -5,26 +5,37 @@ mod error;
 mod notify;
 mod utils;
 
+use std::process;
+
 use axum::{routing::get, Router};
 use db::migrations::run_migrations;
-use tracing::{info, Level};
+use error::BlogError;
+use tracing::info;
 use tracing_subscriber::FmtSubscriber;
-use utils::shutdown_signal;
+
+use crate::{config::CONFIG, db::create_pool, utils::SHUTDOWN};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), BlogError> {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(CONFIG.log_level())
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber)?;
 
-    run_migrations().unwrap();
+    if let Err(e) = run_migrations() {
+        eprintln!("{}", e);
+        process::exit(1);
+    }
 
     info!("Starting Blog...");
-    let app = Router::new().route("/", get(|| async { "hello world" }));
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let pool = create_pool().await?;
+    let app = Router::new()
+        .with_state(pool)
+        .route("/", get(|| async { "hello world" }));
+    let listener = tokio::net::TcpListener::bind(&CONFIG.listener_host()).await?;
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .unwrap();
+        .with_graceful_shutdown(SHUTDOWN.wait_for_shutdown())
+        .await?;
+
+    Ok(())
 }

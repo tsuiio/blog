@@ -10,6 +10,12 @@ pub enum BlogError {
     #[error("database error: {0}")]
     DatabaseError(#[from] diesel::result::Error),
 
+    #[error("db pooled error: {0}")]
+    PooledError(#[from] diesel_async::pooled_connection::PoolError),
+
+    #[error("migrations error: {0}")]
+    MigrationError(String),
+
     #[error("JSON web token error: {0}")]
     JwtError(#[from] jsonwebtoken::errors::Error),
 
@@ -31,26 +37,35 @@ pub enum BlogError {
     #[error("diesel connection error: {0}")]
     DiseleError(#[from] diesel::ConnectionError),
 
+    #[error("toml de error: {0}")]
+    TomlDeError(#[from] toml::de::Error),
+
+    #[error("setting default subscriber failed: {0}")]
+    SubscriberError(#[from] tracing::subscriber::SetGlobalDefaultError),
+
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+
     #[error("Internal server error")]
     InternalServerError,
 
-    #[error("Bad request")]
-    BadRequest,
+    #[error("{0}")]
+    BadRequest(String),
 
-    #[error("Unauthorized")]
-    Unauthorized,
+    #[error("{0}")]
+    Unauthorized(String),
 
-    #[error("Not found")]
-    NotFound,
+    #[error("{0}")]
+    NotFound(String),
 }
 
 impl IntoResponse for BlogError {
     fn into_response(self) -> Response {
         let status = match self {
             BlogError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
-            BlogError::BadRequest => StatusCode::BAD_REQUEST,
-            BlogError::Unauthorized => StatusCode::UNAUTHORIZED,
-            BlogError::NotFound => StatusCode::NOT_FOUND,
+            BlogError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            BlogError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            BlogError::NotFound(_) => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
