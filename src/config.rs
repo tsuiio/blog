@@ -1,29 +1,22 @@
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{env, fs, path::Path};
 
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use tracing::{error, Level};
+use tracing::Level;
 
-use crate::error::BlogError;
+use crate::{error::BlogError, utils::URLEncode};
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let path = env::var("BLOG_CONFIG").unwrap_or_else(|_| String::from("blog.toml"));
-    let path = match PathBuf::from_str(&path) {
-        Ok(path) => path,
-        Err(e) => {
-            error!("Failed to get path: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let path_s = env::var("BLOG_CONFIG").unwrap_or(String::from("blog.toml"));
+    let path = Path::new(&path_s);
 
     match Config::from_file(&path) {
         Ok(config) => config,
         Err(e) => {
-            error!("Failed to load configuration: {}", e);
+            eprintln!(
+                "Failed to load configuration with path({:?}): {}",
+                path_s, e
+            );
             std::process::exit(1);
         }
     }
@@ -33,7 +26,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
 pub struct Config {
     pub web: Web,
     pub db: Db,
-    pub log: LogConfig,
+    pub log: LogLevel,
 }
 
 #[derive(Deserialize)]
@@ -51,10 +44,11 @@ pub struct Db {
     pub name: String,
     pub user: String,
     pub passwd: String,
+    pub max_size: u32,
 }
 
 #[derive(Deserialize)]
-pub struct LogConfig {
+pub struct LogLevel {
     pub level: Log,
 }
 
@@ -95,7 +89,12 @@ impl Config {
         let protocol = if self.db.ssl { "postgres" } else { "postgres" };
         format!(
             "{}://{}:{}@{}:{}/{}",
-            protocol, self.db.user, self.db.passwd, self.db.host, self.db.port, self.db.name
+            protocol,
+            self.db.user.encode(),
+            self.db.passwd.encode(),
+            self.db.host,
+            self.db.port,
+            self.db.name
         )
     }
 

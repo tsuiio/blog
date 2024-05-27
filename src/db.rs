@@ -1,4 +1,5 @@
 pub mod models;
+mod schema;
 
 use std::time::Duration;
 
@@ -31,7 +32,7 @@ pub async fn create_pool() -> Result<DbPool, BlogError> {
     );
 
     let pool = Pool::builder()
-        .max_size(15)
+        .max_size(CONFIG.db.max_size)
         .min_idle(Some(5))
         .max_lifetime(Some(Duration::from_secs(60 * 60 * 24)))
         .idle_timeout(Some(Duration::from_secs(60 * 2)))
@@ -40,7 +41,7 @@ pub async fn create_pool() -> Result<DbPool, BlogError> {
     Ok(pool)
 }
 
-struct DbConn(PooledConnection<'static, AsyncDieselConnectionManager<AsyncPgConnection>>);
+pub struct DbConn(PooledConnection<'static, AsyncDieselConnectionManager<AsyncPgConnection>>);
 
 #[async_trait]
 impl<S> FromRequestParts<S> for DbConn

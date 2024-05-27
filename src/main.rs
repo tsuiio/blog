@@ -10,20 +10,19 @@ use std::process;
 use axum::{routing::get, Router};
 use db::migrations::run_migrations;
 use error::BlogError;
-use tracing::info;
-use tracing_subscriber::FmtSubscriber;
+use tracing::{error, info};
 
 use crate::{config::CONFIG, db::create_pool, utils::SHUTDOWN};
 
 #[tokio::main]
 async fn main() -> Result<(), BlogError> {
-    let subscriber = FmtSubscriber::builder()
+    let subscriber = tracing_subscriber::fmt()
         .with_max_level(CONFIG.log_level())
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
     if let Err(e) = run_migrations() {
-        eprintln!("{}", e);
+        error!("{}", e);
         process::exit(1);
     }
 
