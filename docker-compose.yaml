@@ -1,0 +1,37 @@
+services:
+  db:
+    restart: always
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    healthcheck:
+      test: "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+      interval: 5s
+      retries: 20
+    networks:
+      - internal_network
+      - external_network
+
+  blog:
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    build: .
+    volumes:
+      - ./conf:/blog/conf/
+    environment:
+      - BLOG_CONFIG=./conf/blog.toml
+    ports:
+      - "3000:3000"
+
+    networks:
+      - internal_network
+      - external_network
+
+networks:
+  internal_network:
+    internal: true
+  external_network:
