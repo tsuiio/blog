@@ -34,6 +34,8 @@ pub struct Web {
     pub host: String,
     pub port: u32,
     pub path: String,
+    pub jwt_secret: String,
+    pub jwt_exp: u64,
 }
 
 #[derive(Deserialize)]
