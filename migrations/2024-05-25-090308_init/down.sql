@@ -1,0 +1,17 @@
+DROP TABLE info;
+DROP TABLE comms_closure;
+DROP TABLE comms;
+DROP TABLE comm_users;
+DROP TABLE note_tags;
+DROP TABLE tags;
+DROP TABLE page_about;
+DROP TABLE page_sorts;
+DROP TABLE pages;
+DROP TABLE note_sorts;
+DROP TABLE sorts;
+DROP TABLE notes;
+DROP TABLE short_ids;
+DROP TABLE users;
+DROP TYPE sort_type;
+DROP TYPE page_type;
+DROP TYPE publish_status;

@@ -1,60 +1,100 @@
-use std::{env, fs, path::Path};
+use std::path::Path;
 
+use clap::{Args, Parser, ValueEnum};
+use figment::{
+    providers::{Env, Format, Serialized, Toml},
+    Figment,
+};
 use once_cell::sync::Lazy;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::Level;
 
-use crate::{error::BlogError, utils::URLEncode};
+use crate::{cli::Cli, error::BlogError, utils::URLEncode};
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let path_s = env::var("BLOG_CONFIG").unwrap_or(String::from("blog.toml"));
-    let path = Path::new(&path_s);
+    let args = Cli::parse();
+    let conf = args.config;
+    let path = args.conf_path;
 
-    match Config::from_file(&path) {
+    match Config::figment(&path, conf) {
         Ok(config) => config,
         Err(e) => {
-            eprintln!(
-                "Failed to load configuration with path({:?}): {}",
-                path_s, e
-            );
+            eprintln!("Failed to load config: {}", e);
             std::process::exit(1);
         }
     }
 });
 
-#[derive(Deserialize)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct Config {
+    #[clap(flatten)]
     pub web: Web,
+    #[clap(flatten)]
     pub db: Db,
+    #[clap(flatten)]
     pub log: LogLevel,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct Web {
-    pub host: String,
-    pub port: u32,
-    pub path: String,
-    pub jwt_secret: String,
-    pub jwt_exp: u64,
+    #[clap(long = "web-host")]
+    #[serde(rename = "host")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub web_host: Option<String>,
+    #[clap(long = "web-port")]
+    #[serde(rename = "port")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub web_port: Option<u32>,
+    #[clap(long = "jwt-secret")]
+    #[serde(rename = "jwtsecret")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jwt_secret: Option<String>,
+    #[clap(long = "jwt-exp")]
+    #[serde(rename = "jwtexp")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jwt_exp: Option<u64>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct Db {
-    pub host: String,
-    pub port: u32,
-    pub ssl: bool,
-    pub name: String,
-    pub user: String,
-    pub passwd: String,
-    pub max_size: u32,
+    #[clap(long = "db-host")]
+    #[serde(rename = "host")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_host: Option<String>,
+    #[clap(long = "db-port")]
+    #[serde(rename = "port")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_port: Option<u32>,
+    #[clap(long = "db-ssl")]
+    #[serde(rename = "ssl")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_ssl: Option<bool>,
+    #[clap(long = "db-name")]
+    #[serde(rename = "name")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_name: Option<String>,
+    #[clap(long = "db-user")]
+    #[serde(rename = "user")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_user: Option<String>,
+    #[clap(long = "db-passwd")]
+    #[serde(rename = "passwd")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_passwd: Option<String>,
+    #[clap(long = "db-max-size")]
+    #[serde(rename = "maxsize")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_size: Option<u32>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct LogLevel {
-    pub level: Log,
+    #[clap(long = "log-level")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<Log>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, ValueEnum, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Log {
     Info,
@@ -77,30 +117,44 @@ impl From<&Log> for Level {
 }
 
 impl Config {
-    pub fn from_file(file_path: &Path) -> Result<Self, BlogError> {
-        let config_content = fs::read_to_string(file_path)?;
-        let config: Config = toml::from_str(&config_content)?;
+    pub fn figment(path: &Path, conf: Config) -> Result<Self, BlogError> {
+        dotenvy::dotenv()?;
+
+        let config = Figment::new()
+            .merge(Toml::file(path))
+            .merge(Env::prefixed("TSUIIO_BLOG_").split('_'))
+            .merge(Serialized::defaults(conf))
+            .extract()?;
+
         Ok(config)
     }
 
     pub fn listener_host(&self) -> String {
-        format!("{}:{}", self.web.host, self.web.port)
+        format!(
+            "{}:{}",
+            self.web.web_host.as_ref().unwrap(),
+            self.web.web_port.unwrap()
+        )
     }
 
     pub fn db_url(&self) -> String {
-        let protocol = if self.db.ssl { "postgres" } else { "postgres" };
+        let ssl_param = if self.db.db_ssl.unwrap() {
+            "?sslmode=require"
+        } else {
+            ""
+        };
         format!(
-            "{}://{}:{}@{}:{}/{}",
-            protocol,
-            self.db.user.encode(),
-            self.db.passwd.encode(),
-            self.db.host,
-            self.db.port,
-            self.db.name
+            "postgres://{}:{}@{}:{}/{}{}",
+            self.db.db_user.as_ref().unwrap().encode(),
+            self.db.db_passwd.as_ref().unwrap().encode(),
+            self.db.db_host.as_ref().unwrap(),
+            self.db.db_port.as_ref().unwrap(),
+            self.db.db_name.as_ref().unwrap(),
+            ssl_param
         )
     }
 
     pub fn log_level(&self) -> Level {
-        (&self.log.level).into()
+        self.log.level.as_ref().unwrap().into()
     }
 }

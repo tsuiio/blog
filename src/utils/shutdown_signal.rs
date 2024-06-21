@@ -3,7 +3,7 @@ use tokio::signal;
 use tokio::sync::broadcast;
 use tracing::warn;
 
-pub static SHUTDOWN: Lazy<Shutdown> = Lazy::new(|| Shutdown::new());
+pub static SHUTDOWN: Lazy<Shutdown> = Lazy::new(Shutdown::new);
 
 pub struct Shutdown {
     sender: broadcast::Sender<()>,
@@ -17,7 +17,7 @@ impl Shutdown {
         tokio::spawn(async move {
             Self::shutdown_signal().await;
 
-            if let Err(_) = sender_clone.send(()) {
+            if sender_clone.send(()).is_err() {
                 warn!("Failed to broadcast shutdown signal");
             }
         });
@@ -56,5 +56,25 @@ impl Shutdown {
     pub async fn wait_for_shutdown(&self) {
         let mut receiver = self.sender.subscribe();
         let _ = receiver.recv().await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio::time::sleep;
+
+    #[tokio::test]
+    async fn test_shutdown_signal() {
+        let _ = SHUTDOWN.sender.clone();
+
+        tokio::spawn(async {
+            sleep(Duration::from_millis(500)).await;
+
+            let _ = SHUTDOWN.sender.send(());
+        });
+
+        SHUTDOWN.wait_for_shutdown().await;
     }
 }

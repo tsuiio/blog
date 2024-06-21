@@ -1,6 +1,4 @@
-use axum::{
-    async_trait, extract::FromRequestParts, http::request::Parts, Json, RequestPartsExt, Router,
-};
+use axum::{async_trait, extract::FromRequestParts, http::request::Parts, RequestPartsExt};
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     TypedHeader,
@@ -34,13 +32,11 @@ where
     type Rejection = BlogError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        // Extract the token from the authorization header
         let TypedHeader(Authorization(bearer)) = parts
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
             .map_err(|_| BlogError::InvalidToken)?;
 
-        // Decode the user data
         let token = decode_jwt(bearer.token())?;
 
         Ok(token)
@@ -48,10 +44,10 @@ where
 }
 
 pub fn encode_jwt(id: &Uuid) -> Result<String, BlogError> {
-    let secret = &CONFIG.web.jwt_secret;
+    let secret = CONFIG.web.jwt_secret.as_ref().unwrap();
 
     let expiration = Utc::now()
-        .checked_add_signed(chrono::Duration::days(CONFIG.web.jwt_exp as i64))
+        .checked_add_signed(chrono::Duration::days(CONFIG.web.jwt_exp.unwrap() as i64))
         .expect("Invalid timestamp")
         .timestamp();
 
@@ -70,7 +66,7 @@ pub fn encode_jwt(id: &Uuid) -> Result<String, BlogError> {
 }
 
 pub fn decode_jwt(token: &str) -> Result<Claims, BlogError> {
-    let secret = &CONFIG.web.jwt_secret;
+    let secret = CONFIG.web.jwt_secret.as_ref().unwrap();
 
     let token = decode::<Claims>(
         token,

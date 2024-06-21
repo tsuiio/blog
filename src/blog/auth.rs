@@ -2,20 +2,36 @@ use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use tracing::error;
+use utoipa::{OpenApi, ToSchema};
 
 use crate::{db::models::users::User, error::BlogError, utils::jwt::encode_jwt, AppState};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct Login {
+    #[schema(example = "tsuiio")]
     identity: String,
+    #[schema(example = "nekonya")]
     password: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct LoginReturn {
     token: String,
 }
 
+#[derive(OpenApi)]
+#[openapi(paths(login), components(schemas(LoginReturn, Login)))]
+pub struct AuthDoc;
+
+#[utoipa::path(
+    post,
+    path = "/login",
+    request_body = Login,
+    responses(
+        (status = 200, description = "Login successfully", body = LoginReturn),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn login(
     state: State<AppState>,
     Json(login): Json<Login>,

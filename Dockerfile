@@ -19,7 +19,7 @@ RUN --mount=type=bind,source=src,target=src \
     <<EOF
 set -e
 cargo build --release
-cp ./target/release/$APP_NAME /build/$APP_NAME
+mv ./target/release/$APP_NAME /build/$APP_NAME
 EOF
 
 FROM debian:bookworm-slim AS final

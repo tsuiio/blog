@@ -15,3 +15,18 @@ impl<T: AsRef<str>> URLEncode for T {
         encoded
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_encode() {
+        let password = "My@Super!Secure!Password";
+        let expected_encoded_password = "My%40Super%21Secure%21Password";
+
+        let encoded_password = password.encode();
+
+        assert_eq!(encoded_password, expected_encoded_password);
+    }
+}

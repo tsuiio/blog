@@ -4,6 +4,7 @@ use axum::{
 };
 use serde_json::json;
 use thiserror::Error;
+use tracing::error;
 
 #[derive(Debug, Error)]
 pub enum BlogError {
@@ -12,6 +13,9 @@ pub enum BlogError {
 
     #[error("db pooled error: {0}")]
     PooledError(#[from] diesel_async::pooled_connection::PoolError),
+
+    #[error("db pool run error: {0}")]
+    PoolRunError(#[from] diesel_async::pooled_connection::bb8::RunError),
 
     #[error("migrations error: {0}")]
     MigrationError(String),
@@ -43,10 +47,28 @@ pub enum BlogError {
     #[error("setting default subscriber failed: {0}")]
     SubscriberError(#[from] tracing::subscriber::SetGlobalDefaultError),
 
+    #[error("figment error: {0}")]
+    FigmentError(#[from] figment::Error),
+
+    #[error("dotenvy error: {0}")]
+    DotenvyErrro(#[from] dotenvy::Error),
+
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 
-    #[error("Internal server error")]
+    #[error("wrong credentials")]
+    WrongCredentials,
+
+    #[error("missing credentials")]
+    MissingCredentials,
+
+    #[error("token creation error")]
+    TokenCreation,
+
+    #[error("invalid token")]
+    InvalidToken,
+
+    #[error("internal server error")]
     InternalServerError,
 
     #[error("{0}")]
@@ -57,19 +79,32 @@ pub enum BlogError {
 
     #[error("{0}")]
     NotFound(String),
+
+    #[error("{0}")]
+    Conflict(String),
 }
 
 impl IntoResponse for BlogError {
     fn into_response(self) -> Response {
-        let status = match self {
-            BlogError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
-            BlogError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            BlogError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
-            BlogError::NotFound(_) => StatusCode::NOT_FOUND,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        let (status, error_message) = match self {
+            BlogError::InternalServerError => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            BlogError::BadRequest(s) => (StatusCode::BAD_REQUEST, s),
+            BlogError::Unauthorized(s) => (StatusCode::UNAUTHORIZED, s),
+            BlogError::NotFound(s) => (StatusCode::NOT_FOUND, s),
+            BlogError::Conflict(s) => (StatusCode::CONFLICT, s),
+            BlogError::WrongCredentials => (StatusCode::UNAUTHORIZED, self.to_string()),
+            BlogError::MissingCredentials => (StatusCode::BAD_REQUEST, self.to_string()),
+            BlogError::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            BlogError::InvalidToken => (StatusCode::BAD_REQUEST, self.to_string()),
+            _ => {
+                error!("{}", self);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    String::from("internal server error"),
+                )
+            }
         };
 
-        let error_message = self.to_string();
         let body = json!({ "error": error_message });
         (status, axum::Json(body)).into_response()
     }
