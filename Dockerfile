@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.78.0
+ARG RUST_VERSION=1.79.0
 ARG APP_NAME=tsuiiblog
 
 FROM rust:${RUST_VERSION}-slim-bookworm AS build
