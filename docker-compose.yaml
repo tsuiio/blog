@@ -25,7 +25,7 @@ services:
     volumes:
       - ./conf:/blog/conf/
     environment:
-      - BLOG_CONFIG=./conf/blog.toml
+      - TSUIIO_BLOG_CONFIG=./conf/blog.toml
     ports:
       - "9097:3000"
 
