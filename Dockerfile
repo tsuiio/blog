@@ -8,7 +8,8 @@ WORKDIR /build
 
 RUN apt-get update \
     && apt-get install -y \
-    libssl-dev pkg-config libpq-dev
+    curl \
+    libssl-dev pkg-config libpq-dev 
 
 RUN --mount=type=bind,source=src,target=src \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
