@@ -46,12 +46,10 @@ pub struct NewNote<'a> {
 
 #[derive(Debug, PartialEq, DbEnum, Deserialize, Serialize, utoipa::ToSchema)]
 #[ExistingTypePath = "PublishStatus"]
+#[serde(rename_all = "lowercase")]
 pub enum Status {
-    #[serde(rename = "public")]
     Public,
-    #[serde(rename = "draft")]
     Draft,
-    #[serde(rename = "recycle")]
     Recycle,
 }
 
@@ -218,6 +216,7 @@ impl Note {
         summary: &str,
         content: &str,
         status: &Status,
+        comm: bool,
         pool: DbPool,
     ) -> Result<(), BlogError> {
         use crate::db::schema::{notes, short_ids};
@@ -234,6 +233,7 @@ impl Note {
                         notes::title.eq(title),
                         notes::status.eq(status),
                         notes::updated_at.eq(now),
+                        notes::comm.eq(comm),
                     ))
                     .execute(conn)
                     .await?;

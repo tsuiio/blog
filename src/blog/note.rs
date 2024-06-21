@@ -186,6 +186,7 @@ pub async fn update_note(
         &summary,
         &u_note.content,
         &u_note.status,
+        u_note.comm,
         pool.clone(),
     )
     .await
