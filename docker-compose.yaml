@@ -4,8 +4,6 @@ services:
     image: postgres:16-alpine
     env_file:
       - .env
-    ports:
-      - 9098:5432
     volumes:
       - ./db:/var/lib/postgresql/data
     healthcheck:
@@ -13,7 +11,7 @@ services:
       interval: 5s
       retries: 20
     networks:
-      # - internal_network
+      - internal_network
       - external_network
 
   blog:
@@ -27,7 +25,7 @@ services:
     environment:
       - TSUIIO_BLOG_CONFIG=./conf/blog.toml
     ports:
-      - "9097:3000"
+      - "3000:3000"
 
     networks:
       - internal_network
