@@ -118,7 +118,7 @@ impl From<&Log> for Level {
 
 impl Config {
     pub fn figment(path: &Path, conf: Config) -> Result<Self, BlogError> {
-        dotenvy::dotenv()?;
+        let _ = dotenvy::dotenv();
 
         let config = Figment::new()
             .merge(Toml::file(path))
