@@ -4,8 +4,8 @@ use axum_extra::{
     TypedHeader,
 };
 use chrono::Utc;
-use jsonwebtoken::Algorithm;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{errors::ErrorKind, Algorithm};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use uuid::Uuid;
@@ -72,8 +72,13 @@ pub fn decode_jwt(token: &str) -> Result<Claims, BlogError> {
         token,
         &DecodingKey::from_secret(secret.as_bytes()),
         &Validation::new(Algorithm::HS512),
-    )
-    .map_err(|_| BlogError::InvalidToken)?;
+    );
 
-    Ok(token.claims)
+    match token {
+        Ok(token) => Ok(token.claims),
+        Err(e) => match e.kind() {
+            ErrorKind::ExpiredSignature => Err(BlogError::TokenExpired),
+            _ => Err(BlogError::InvalidToken),
+        },
+    }
 }

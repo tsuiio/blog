@@ -71,6 +71,9 @@ pub enum BlogError {
     #[error("internal server error")]
     InternalServerError,
 
+    #[error("token expired")]
+    TokenExpired,
+
     #[error("{0}")]
     BadRequest(String),
 
@@ -95,7 +98,8 @@ impl IntoResponse for BlogError {
             BlogError::WrongCredentials => (StatusCode::UNAUTHORIZED, self.to_string()),
             BlogError::MissingCredentials => (StatusCode::BAD_REQUEST, self.to_string()),
             BlogError::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
-            BlogError::InvalidToken => (StatusCode::BAD_REQUEST, self.to_string()),
+            BlogError::InvalidToken => (StatusCode::UNAUTHORIZED, self.to_string()),
+            BlogError::TokenExpired => (StatusCode::UNAUTHORIZED, self.to_string()),
             _ => {
                 error!("{}", self);
                 (
