@@ -17,7 +17,7 @@ use info::{create_info, get_info, update_info};
 use note::{create_note, delete_note, get_note, list_notes, update_note};
 use page::{create_page, delete_page, get_page, update_page};
 use sort::{create_sort, get_sorts, update_sort};
-use tag::{create_tag, delete_tag, get_tags, update_tag};
+use tag::{attach_tag, create_tag, delete_tag, detach_tag, get_tags, update_tag};
 use user::{create_user, update_user_info};
 use utoipa::{
     openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
@@ -44,6 +44,7 @@ pub fn router(state: AppState) -> Router {
         .route("/tag", post(create_tag))
         .route("/tag/:id", delete(delete_tag).put(update_tag))
         .route("/tags/:page", get(get_tags))
+        .route("/notetag", post(attach_tag).delete(detach_tag))
         .route("/sort", post(create_sort))
         .route("/sort/:id", put(update_sort))
         .route("/sorts", get(get_sorts))

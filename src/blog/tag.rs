@@ -9,7 +9,10 @@ use tracing::error;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
-use crate::{db::models::tags::Tag, error::BlogError};
+use crate::{
+    db::models::{note_tags::NoteTag, tags::Tag},
+    error::BlogError,
+};
 use crate::{utils::jwt::Claims, AppState};
 
 #[derive(Deserialize, ToSchema)]
@@ -38,10 +41,16 @@ pub struct ReturnTags {
     tags: Vec<ReturnTag>,
 }
 
+#[derive(Deserialize, ToSchema)]
+pub struct NoteTagInput {
+    note_id: Uuid,
+    tag_id: Uuid,
+}
+
 #[derive(OpenApi)]
 #[openapi(
-    paths(create_tag, get_tags, delete_tag, update_tag),
-    components(schemas(CreateTag, UpdateTag, ReturnTag, ReturnTags))
+    paths(create_tag, get_tags, delete_tag, update_tag, attach_tag, detach_tag),
+    components(schemas(CreateTag, UpdateTag, ReturnTag, ReturnTags, NoteTagInput))
 )]
 pub struct TagDoc;
 
@@ -177,4 +186,52 @@ pub async fn delete_tag(state: State<AppState>, Path(id): Path<Uuid>) -> Result<
     Tag::delete_tag_by_uuid(&id, pool.clone()).await?;
 
     Ok(json!({"ok": "delete tag ok"}).to_string())
+}
+
+#[utoipa::path(
+    post,
+    path = "/notetag",
+    request_body = NoteTagInput,
+    responses(
+        (status = 200, description = "Tag attach successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("jwt_token" = [])
+    )
+)]
+pub async fn attach_tag(
+    state: State<AppState>,
+    _claims: Claims,
+    Json(input): Json<NoteTagInput>,
+) -> Result<String, BlogError> {
+    let mut conn = state.pool.get_owned().await?;
+
+    NoteTag::add_tag_to_note(&input.note_id, &input.tag_id, &mut conn).await?;
+
+    Ok(json!({"ok": "attach tag ok"}).to_string())
+}
+
+#[utoipa::path(
+    delete,
+    path = "/notetag",
+    request_body = NoteTagInput,
+    responses(
+        (status = 200, description = "Tag dettach successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("jwt_token" = [])
+    )
+)]
+pub async fn detach_tag(
+    state: State<AppState>,
+    _claims: Claims,
+    Json(input): Json<NoteTagInput>,
+) -> Result<String, BlogError> {
+    let mut conn = state.pool.get_owned().await?;
+
+    NoteTag::remove_tag_from_note(&input.note_id, &input.tag_id, &mut conn).await?;
+
+    Ok(json!({"ok": "detach tag ok"}).to_string())
 }
