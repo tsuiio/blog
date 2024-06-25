@@ -97,6 +97,8 @@ diesel::table! {
         comm -> Bool,
         user_id -> Uuid,
         short_id -> Uuid,
+        #[max_length = 2048]
+        fancy_img -> Nullable<Varchar>,
     }
 }
 

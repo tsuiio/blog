@@ -26,6 +26,7 @@ pub struct Note {
     pub comm: bool,
     pub user_id: Uuid,
     pub short_id: Uuid,
+    pub fancy_img: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -42,6 +43,7 @@ pub struct NewNote<'a> {
     comm: bool,
     user_id: &'a Uuid,
     short_id: Uuid,
+    fancy_img: Option<&'a str>,
 }
 
 #[derive(Debug, PartialEq, DbEnum, Deserialize, Serialize, utoipa::ToSchema)]
@@ -62,6 +64,7 @@ impl Note {
         content: &str,
         comm: bool,
         user_id: &Uuid,
+        fancy_img: Option<&str>,
         pool: DbPool,
     ) -> Result<(), BlogError> {
         use crate::db::schema::{notes, short_ids};
@@ -91,6 +94,7 @@ impl Note {
                     comm,
                     user_id,
                     short_id,
+                    fancy_img,
                 };
 
                 diesel::insert_into(notes::table)
@@ -154,6 +158,7 @@ impl Note {
                 Note::as_select(),
                 (short_ids::short_name, short_ids::subname),
             ))
+            .order(notes::created_at.desc())
             .limit(limit)
             .offset(offset)
             .load::<(Note, (String, Option<String>))>(conn)
@@ -217,6 +222,7 @@ impl Note {
         content: &str,
         status: &Status,
         comm: bool,
+        fancy_img: Option<&str>,
         pool: DbPool,
     ) -> Result<(), BlogError> {
         use crate::db::schema::{notes, short_ids};
@@ -234,6 +240,7 @@ impl Note {
                         notes::status.eq(status),
                         notes::updated_at.eq(now),
                         notes::comm.eq(comm),
+                        notes::fancy_img.eq(fancy_img),
                     ))
                     .execute(conn)
                     .await?;

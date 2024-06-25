@@ -30,6 +30,7 @@ pub struct CreateNote {
     pub status: Status,
     pub content: String,
     pub comm: bool,
+    pub fancy_img: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -39,6 +40,7 @@ pub struct UpdateNote {
     pub status: Status,
     pub content: String,
     pub comm: bool,
+    pub fancy_img: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -55,6 +57,7 @@ pub struct ReturnNote {
     comm: bool,
     tags: Vec<String>,
     sorts: Vec<ListNoteSorts>,
+    fancy_img: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -70,6 +73,7 @@ pub struct ListNoteInner {
     pub summary: String,
     pub tags: Vec<String>,
     pub sorts: Vec<ListNoteSorts>,
+    pub fancy_img: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -143,6 +147,7 @@ pub async fn create_note(
         &new_note.content,
         new_note.comm,
         &user_id,
+        new_note.fancy_img.as_deref(),
         pool.clone(),
     )
     .await
@@ -187,6 +192,7 @@ pub async fn update_note(
         &u_note.content,
         &u_note.status,
         u_note.comm,
+        u_note.fancy_img.as_deref(),
         pool.clone(),
     )
     .await
@@ -293,6 +299,7 @@ pub async fn list_notes(
             summary: note.summary,
             tags: tags_map.remove(&note.id).unwrap_or_default(),
             sorts: sorts_map.remove(&note.id).unwrap_or_default(),
+            fancy_img: note.fancy_img,
         })
         .collect();
 
@@ -323,7 +330,6 @@ pub async fn delete_note(
 ) -> Result<String, BlogError> {
     let pool = &state.pool;
 
-    // let note_id = Uuid::parse_str(&note_id)?;
     Note::delete_note_by_uuid(&note_id, pool.clone())
         .await
         .map_err(|e| {
@@ -408,5 +414,6 @@ pub async fn get_note(
                 content: s.content,
             })
             .collect(),
+        fancy_img: note.fancy_img,
     }))
 }
